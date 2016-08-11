@@ -5,6 +5,9 @@
 
 #include <ESP8266HTTPClient.h>
 #include <ESP8266httpUpdate.h>
+#include <ESP8266WebServer.h>
+#include <ESP8266mDNS.h>
+#include <ESP8266HTTPUpdateServer.h>
 
 #include <EEPROM.h>
 
@@ -17,5 +20,9 @@
 #define REMOTECHECKUPDATE_URL "http://192.168.1.71/file.bin"
 #define REMOTECHECKUPDATE_EEPROM 0 //Address of config in eeprom (194 bytes)
 
+#define REMOTECHECKUPDATE_WAITSECONDS 600 //Run program after 10minutes without client
 
-int checkUpdate();
+void autoUpdater();
+int checkUpdater();
+int listenUpdater();
+void handleRoot();

@@ -27,7 +27,7 @@ void setup() {
 
   USE_SERIAL.flush();
   
-  checkUpdate();
+  autoUpdater();
 
 }
 

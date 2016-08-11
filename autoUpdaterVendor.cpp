@@ -1,6 +1,10 @@
 #include "autoUpdaterVendor.h"
 
 ESP8266WiFiMulti WiFiMulti;
+ESP8266WebServer httpServer(80);
+ESP8266HTTPUpdateServer httpUpdater;
+
+const char* host = "esp8266-webupdate";
 
 struct autoUpdaterConfig{
   unsigned int currentVersion;
@@ -10,7 +14,9 @@ struct autoUpdaterConfig{
 };
 
 void autoUpdater(){
-  int result = checkUpdate();
+  int result = 0;
+  //result = checkUpdater();
+  result = listenUpdater();
 }
 
 /*
@@ -27,7 +33,7 @@ void autoUpdater(){
  *    - -2: Fail to connect to wifi
  *    - -1XX: Error returned by server (-102: File not found), see ESP8266httpUpdate.h for details
  */
-int checkUpdate() {
+int checkUpdater() {
 
   USE_SERIAL.begin(115200);
 
@@ -100,15 +106,53 @@ int checkUpdate() {
 /**
  * Open a webserver for receive a file bin
  */
-bool listenUpdate() {
+int listenUpdater() {
+
+  USE_SERIAL.begin(115200);
+
+  byte macAddr[6];
+  WiFi.macAddress(macAddr);
+
+  //Generate ESSID
+  String essid = "ESP_";
+  for (int i = 0; i < 6; ++i) {
+    if (macAddr[i]<0x10) {essid += "0";}
+    essid += String(macAddr[i],HEX);
+  }
+  //essid.toUpperCase();
+  //Parse String to char
+  char AP_NameChar[essid.length()];
+  for(int i=0; i<essid.length(); i++){
+    AP_NameChar[i] = essid.charAt(i);;
+  }
+
+  Serial.print("[AUTOUPDATER] Create access point: ");
+  Serial.println(essid);
+    
+  WiFi.softAP(AP_NameChar);
+  IPAddress myIP = WiFi.softAPIP();
+  delay(5000);
+  Serial.print("[AUTOUPDATER] Ip address: ");
+  Serial.println(myIP);
+
+  MDNS.begin(host);
+  httpUpdater.setup(&httpServer);
+  httpServer.begin();
+
+  MDNS.addService("http", "tcp", 80);
+  Serial.printf("[AUTOUPDATER] HTTPUpdateServer ready! Open http://%s.local/update in your browser\n", host);
+
+  unsigned int loopWaitTime = 0;
+  while(loopWaitTime < REMOTECHECKUPDATE_WAITSECONDS){
+    httpServer.handleClient();
+    loopWaitTime++;
+    delay(1000);
+  }
+
+  httpServer.close();
+  httpServer.stop();
+  WiFi.softAPdisconnect(true);
+  Serial.println("[AUTOUPDATER] Timeout ! Exit updater");
+  return 0;
 
 }
-
-String getConfigString(int memStart, int memEnd){
-  String variable;
-  for (int i = memStart; i < memEnd; ++i)
-    {
-      variable += char(EEPROM.read(i));
-    }
-}
-
