@@ -1,33 +1,37 @@
 Update over the air on ESP8266
 ===
 
-This updater will autoget new program on a URL by connecting WIFI.
+About
+---
+
+This updater will autoget new program on a URL by connecting WIFI when you press GPIO04 and GPIO05 to GND.
 If the WiFi is not available, a AP WiFi is created for upload by a webpage on ESP.
 
 I don't check version of program. So you must force update when you want overwrite you program.
 
-Usage on your arduino/platformIO code
+Usage
 ---
-1. Include lib
-#include "autoUpdaterVendor.h"
 
-2. Call updater on your setup function (or anywhere)
-autoUpdater();
+Include autoUpdaterVendor.h and autoUpdaterVendor.cpp on you project.
+Place this 2 lines on your arduino/platformIO code.
+
+  \#include "autoUpdaterVendor.h"
+  autoUpdater();
 
 
 Special at boot
 ---
 
 ##### Reset to default settings AutoUpdater
-  * Hold GPIO04 and GPIO05 on normal boot
-  * Wait 30s until blue led is quickly blinking
-  * Release when led stop blinking
+* Hold GPIO04 and GPIO05 on normal boot
+* Release GPIO04 and GPIO05 after 30s
 
-##### Force to Launch AutoGetDownloader (when disabled)
- * Hold GPIO04 and GPIO05 on normal boot
- * Release GPIO04 and GPIO05 when led quickly blinking
+##### Launch AutoGetDownloader
+* Hold GPIO04 and GPIO05 on normal boot
+* Release GPIO04 and GPIO05
 
 Note : If you release only GPIO05, AutoUpdate will launch update by AutoGet
+
 Note : If you release only GPIO04, AutoUpdate will launch update by Listener
 
 
