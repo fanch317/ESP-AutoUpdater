@@ -4,19 +4,132 @@ ESP8266WiFiMulti WiFiMulti;
 ESP8266WebServer httpServer(80);
 ESP8266HTTPUpdateServer httpUpdater;
 
-const char* host = "esp8266-webupdate";
 
-struct autoUpdaterConfig{
-  unsigned int currentVersion;
-  char essid[32];
-  char pass[32];
-  char url[128];
-};
+void debugDisplayConfig(autoUpdaterConfig configEeprom){
+  USE_SERIAL.println("debugDisplayConfig");
+  USE_SERIAL.println(configEeprom.hostname);
+  USE_SERIAL.println(configEeprom.autoGetWifiEssid);
+  USE_SERIAL.println(configEeprom.autoGetWifiPass);
+  USE_SERIAL.println(configEeprom.autoGetUrl);
+  USE_SERIAL.println(configEeprom.autoGetMaxAttempts);
+  USE_SERIAL.println(configEeprom.listenerWifiEssid);
+  USE_SERIAL.println(configEeprom.listenerWifiPass);
+  USE_SERIAL.println(configEeprom.listenerTimeout);
 
+}
+
+
+/*
+ *
+ */
 void autoUpdater(){
-  int result = 0;
-  //result = checkUpdater();
-  result = listenUpdater();
+
+  autoUpdaterConfig configEeprom;
+
+  USE_SERIAL.begin(115200);
+
+  EEPROM.begin(512);
+
+  EEPROM.get(AUTOUPDATER_EEPROMADDRESS, configEeprom );
+
+  debugDisplayConfig(configEeprom);
+  if(configEeprom.autoGetWifiEssid == 0 || true){
+    USE_SERIAL.println("[AUTOUPDATER] Initialize configEeprom with defaults values");
+    configEeprom.dateProgram = 0;
+
+    strcpy(configEeprom.hostname, AUTOUPDATER_HOSTNAME);
+
+    strcpy(configEeprom.autoGetWifiEssid, AUTOUPDATER_AUTOGET_WIFIESSID);
+    strcpy(configEeprom.autoGetWifiPass, AUTOUPDATER_AUTOGET_WIFIPASS);
+    strcpy(configEeprom.autoGetUrl, AUTOUPDATER_AUTOGET_URL);
+    configEeprom.autoGetMaxAttempts = AUTOUPDATER_AUTOGET_MAXATTEMPTS;
+
+
+    strcpy(configEeprom.listenerWifiEssid, AUTOUPDATER_LISTENER_WIFIESSID);
+    strcpy(configEeprom.listenerWifiPass,  AUTOUPDATER_LISTENER_WIFIPASS);
+    configEeprom.listenerTimeout = AUTOUPDATER_LISTENER_WAITSECONDS;
+
+    EEPROM.put( AUTOUPDATER_EEPROMADDRESS, configEeprom );
+    EEPROM.commit();
+  }
+
+  debugDisplayConfig(configEeprom);
+
+  USE_SERIAL.printf("[AUTOUPDATER] dateProgram from eeprom: %d",configEeprom.dateProgram);
+
+
+  pinMode(4, INPUT);
+  pinMode(5, INPUT);
+
+  if(digitalRead(4)==0 && digitalRead(5)==0 ){
+    unsigned char timeout;
+    bool exit = false;
+    timeout = 30;
+    do{
+      USE_SERIAL.printf("[AUTOUPDATER] Control key is pressed. Reset config ins %d second(s)",timeout);
+      USE_SERIAL.println("");
+      delay(1000);
+      if(digitalRead(4)!=0 || digitalRead(5)!=0 ){
+        exit = true;
+      }
+      timeout--;
+    } while(timeout > 0 && !exit);
+    delay(500); //Wait for all release buttons
+
+    /*
+     * Reset config
+     */
+    if(digitalRead(4)==0 && digitalRead(5)==0){
+      USE_SERIAL.println("[AUTOUPDATER] Force to reset config with defaults values!");
+      debugDisplayConfig(configEeprom);
+      configEeprom.dateProgram = 0;
+      strcpy(configEeprom.hostname, AUTOUPDATER_HOSTNAME);
+      strcpy(configEeprom.autoGetWifiEssid, AUTOUPDATER_AUTOGET_WIFIESSID);
+      strcpy(configEeprom.autoGetWifiPass, AUTOUPDATER_AUTOGET_WIFIPASS);
+      strcpy(configEeprom.autoGetUrl, AUTOUPDATER_AUTOGET_URL);
+      strcpy(configEeprom.listenerWifiEssid, AUTOUPDATER_LISTENER_WIFIESSID);
+      strcpy(configEeprom.listenerWifiPass,  AUTOUPDATER_LISTENER_WIFIPASS);
+      configEeprom.listenerTimeout = AUTOUPDATER_LISTENER_WAITSECONDS;
+      EEPROM.put( AUTOUPDATER_EEPROMADDRESS, configEeprom );
+      EEPROM.commit();
+      debugDisplayConfig(configEeprom);
+      int result = 0;
+      //Update by autoget (connect to a wifi)
+      result = updateByAutoGet(configEeprom);
+      if(result != 0){
+        //Listen to accept a new firmware by creating a new AP
+        result = listenUpdater(configEeprom);
+      }
+    }
+
+    /*
+     * Update only by autoGet
+     */
+    if(digitalRead(4)==0 && digitalRead(5)!=0){
+      USE_SERIAL.println("[AUTOUPDATER] Do a update by AutoGet");
+      updateByAutoGet(configEeprom);
+    }
+    /*
+     * Update only listener
+     */
+    if(digitalRead(4)!=0 && digitalRead(5)==0){
+      USE_SERIAL.println("[AUTOUPDATER] Do a update by Listener");
+      listenUpdater(configEeprom);
+    }
+    /*
+     * Update normal (autoget then listener if fail)
+     */
+    else{
+      USE_SERIAL.println("[AUTOUPDATER] Do a update (AutoGet then Listener if fail)");
+      int result = 0;
+      //Update by autoget (connect to a wifi)
+      result = updateByAutoGet(configEeprom);
+      if(result != 0){
+        //Listen to accept a new firmware by creating a new AP
+        result = listenUpdater(configEeprom);
+      }
+    }
+  }
 }
 
 /*
@@ -33,30 +146,13 @@ void autoUpdater(){
  *    - -2: Fail to connect to wifi
  *    - -1XX: Error returned by server (-102: File not found), see ESP8266httpUpdate.h for details
  */
-int checkUpdater() {
+int updateByAutoGet(autoUpdaterConfig configEeprom) {
 
-  USE_SERIAL.begin(115200);
+  USE_SERIAL.printf("[AUTOUPDATER] Set WiFi to %S...\n",configEeprom.autoGetWifiEssid);
 
-  EEPROM.begin(512);
+  USE_SERIAL.printf("[AUTOUPDATER] dateProgram from eeprom: %d",configEeprom.dateProgram);
 
-  autoUpdaterConfig configEeprom;
-  EEPROM.get(REMOTECHECKUPDATE_EEPROM, configEeprom );
-
-  if(configEeprom.essid == 0){
-    USE_SERIAL.println("[AUTOUPDATER] Initialize configEeprom with defaults values");
-    configEeprom.currentVersion = 1;
-    strcpy(configEeprom.essid, "***REMOVED***");
-    strcpy(configEeprom.pass, "***REMOVED***");
-    strcpy(configEeprom.url, "http://192.168.1.71/file.bin");
-    EEPROM.put( REMOTECHECKUPDATE_EEPROM, configEeprom );
-    EEPROM.commit();
-  }
-
-  USE_SERIAL.printf("[AUTOUPDATER] currentVersion from eeprom: %d",configEeprom.currentVersion);
-
-
-  USE_SERIAL.printf("[AUTOUPDATER] Set WiFi to %S...\n",REMOTECHECKUPDATE_WIFISSID);
-  WiFiMulti.addAP(REMOTECHECKUPDATE_WIFISSID, REMOTECHECKUPDATE_WIFIPASS);
+  WiFiMulti.addAP(configEeprom.autoGetWifiEssid, configEeprom.autoGetWifiPass);
 
   ESPhttpUpdate.rebootOnUpdate(true);
 
@@ -64,14 +160,14 @@ int checkUpdater() {
 
   do {
 
-    USE_SERIAL.printf("[AUTOUPDATER] Attempt to check update [%d of %d]...\n", loopCheckUpdate, REMOTECHECKUPDATE_MAXATTEMPTS);
+    USE_SERIAL.printf("[AUTOUPDATER] Attempt to check update [%d of %d]...\n", loopCheckUpdate, configEeprom.autoGetMaxAttempts);
 
     //WiFi connection required
     if ((WiFiMulti.run() == WL_CONNECTED)) {
       USE_SERIAL.println("[AUTOUPDATER] WiFi AP is connected !");
 
       //Run updateESP.getResetReason()
-      t_httpUpdate_return ret = ESPhttpUpdate.update(REMOTECHECKUPDATE_URL);
+      t_httpUpdate_return ret = ESPhttpUpdate.update(configEeprom.autoGetUrl);
 
       switch (ret) {
         case HTTP_UPDATE_FAILED:
@@ -96,7 +192,7 @@ int checkUpdater() {
     delay(1000);
     loopCheckUpdate++;
 
-  }while(loopCheckUpdate <= REMOTECHECKUPDATE_MAXATTEMPTS);
+  }while(loopCheckUpdate <= configEeprom.autoGetMaxAttempts);
 
   USE_SERIAL.println("[AUTOUPDATER] Max attempt reached. Skip auto-update");
 
@@ -106,24 +202,28 @@ int checkUpdater() {
 /**
  * Open a webserver for receive a file bin
  */
-int listenUpdater() {
+int listenUpdater(autoUpdaterConfig configEeprom) {
 
-  USE_SERIAL.begin(115200);
+  String essid;
 
-  byte macAddr[6];
-  WiFi.macAddress(macAddr);
-
-  //Generate ESSID
-  String essid = "ESP_";
-  for (int i = 0; i < 6; ++i) {
-    if (macAddr[i]<0x10) {essid += "0";}
-    essid += String(macAddr[i],HEX);
+  //Bypass essid
+  if(configEeprom.listenerWifiEssid != ""){
+    essid = configEeprom.listenerWifiEssid;
+  }else{
+    //Generate ESSID
+    byte macAddr[6];
+    WiFi.macAddress(macAddr);
+    String essid = "ESP_";
+    for (int i = 0; i < 6; ++i) {
+      if (macAddr[i]<0x10) {essid += "0";}
+      essid += String(macAddr[i],HEX);
+    }
   }
-  //essid.toUpperCase();
+
   //Parse String to char
   char AP_NameChar[essid.length()];
   for(int i=0; i<essid.length(); i++){
-    AP_NameChar[i] = essid.charAt(i);;
+    AP_NameChar[i] = essid.charAt(i);
   }
 
   Serial.print("[AUTOUPDATER] Create access point: ");
@@ -135,15 +235,15 @@ int listenUpdater() {
   Serial.print("[AUTOUPDATER] Ip address: ");
   Serial.println(myIP);
 
-  MDNS.begin(host);
+  MDNS.begin(configEeprom.hostname);
   httpUpdater.setup(&httpServer);
   httpServer.begin();
 
   MDNS.addService("http", "tcp", 80);
-  Serial.printf("[AUTOUPDATER] HTTPUpdateServer ready! Open http://%s.local/update in your browser\n", host);
+  Serial.printf("[AUTOUPDATER] HTTPUpdateServer ready! Open http://%s.local/update in your browser\n", configEeprom.hostname);
 
   unsigned int loopWaitTime = 0;
-  while(loopWaitTime < REMOTECHECKUPDATE_WAITSECONDS){
+  while(loopWaitTime < AUTOUPDATER_LISTENER_WAITSECONDS){
     httpServer.handleClient();
     loopWaitTime++;
     delay(1000);
