@@ -14,7 +14,7 @@ void setup() {
 
   USE_SERIAL.begin(115200);
   // USE_SERIAL.setDebugOutput(true);
-  
+
   USE_SERIAL.println();
   USE_SERIAL.println();
   USE_SERIAL.println();
@@ -26,14 +26,14 @@ void setup() {
   }
 
   USE_SERIAL.flush();
-  
+
   autoUpdater();
 
 }
 
 
 void loop() {
- 
+
   //pinMode(LED_BUILTIN, OUTPUT);     // Initialize the LED_BUILTIN pin as an output
   while (true) {
     USE_SERIAL.println("run");
@@ -43,6 +43,5 @@ void loop() {
     //digitalWrite(LED_BUILTIN, HIGH);  // Turn the LED off by making the voltage HIGH
     delay(5000);
   }
-  
-}
 
+}

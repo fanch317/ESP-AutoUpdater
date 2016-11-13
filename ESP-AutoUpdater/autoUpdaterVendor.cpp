@@ -25,7 +25,7 @@ void autoUpdater(){
  *  - Get a dhcp IP
  *  - Retreive and update bin file
  *  - Retry X times
- *  
+ *
  *  Return:
 
  *    - 0: Update success (normaly never return because immediatly reset)
@@ -54,18 +54,18 @@ int checkUpdater() {
 
   USE_SERIAL.printf("[AUTOUPDATER] currentVersion from eeprom: %d",configEeprom.currentVersion);
 
-  
+
   USE_SERIAL.printf("[AUTOUPDATER] Set WiFi to %S...\n",REMOTECHECKUPDATE_WIFISSID);
   WiFiMulti.addAP(REMOTECHECKUPDATE_WIFISSID, REMOTECHECKUPDATE_WIFIPASS);
 
   ESPhttpUpdate.rebootOnUpdate(true);
 
   int loopCheckUpdate = 1;
-  
+
   do {
-    
+
     USE_SERIAL.printf("[AUTOUPDATER] Attempt to check update [%d of %d]...\n", loopCheckUpdate, REMOTECHECKUPDATE_MAXATTEMPTS);
-    
+
     //WiFi connection required
     if ((WiFiMulti.run() == WL_CONNECTED)) {
       USE_SERIAL.println("[AUTOUPDATER] WiFi AP is connected !");
@@ -78,12 +78,12 @@ int checkUpdater() {
           USE_SERIAL.printf("[AUTOUPDATER] HTTP_UPDATE_FAILD Error (%d): %s\n", ESPhttpUpdate.getLastError(), ESPhttpUpdate.getLastErrorString().c_str());
           return ESPhttpUpdate.getLastError();
           break;
-  
+
         case HTTP_UPDATE_NO_UPDATES:
           USE_SERIAL.println("[AUTOUPDATER] HTTP_UPDATE_NO_UPDATES");
           return -1;
           break;
-  
+
         case HTTP_UPDATE_OK:
           USE_SERIAL.println("[AUTOUPDATER] HTTP_UPDATE_OK");
           return 0;
@@ -95,11 +95,11 @@ int checkUpdater() {
 
     delay(1000);
     loopCheckUpdate++;
-    
+
   }while(loopCheckUpdate <= REMOTECHECKUPDATE_MAXATTEMPTS);
-  
+
   USE_SERIAL.println("[AUTOUPDATER] Max attempt reached. Skip auto-update");
-  
+
   return -2;
 }
 
@@ -128,7 +128,7 @@ int listenUpdater() {
 
   Serial.print("[AUTOUPDATER] Create access point: ");
   Serial.println(essid);
-    
+
   WiFi.softAP(AP_NameChar);
   IPAddress myIP = WiFi.softAPIP();
   delay(5000);
