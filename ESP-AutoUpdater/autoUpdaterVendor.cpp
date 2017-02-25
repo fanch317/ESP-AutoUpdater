@@ -57,8 +57,8 @@ void autoUpdater(){
   USE_SERIAL.printf("[AUTOUPDATER] dateProgram from eeprom: %d\n",configEeprom.dateProgram);
 
 
-  pinMode(AUTOUPDATER_GPIOA, INPUT);
-  pinMode(AUTOUPDATER_GPIOB, INPUT);
+  pinMode(AUTOUPDATER_GPIOA, INPUT_PULLUP);
+  pinMode(AUTOUPDATER_GPIOB, INPUT_PULLUP);
 
   if(digitalRead(AUTOUPDATER_GPIOA)==0 && digitalRead(AUTOUPDATER_GPIOB)==0 ){
     unsigned char timeout;
