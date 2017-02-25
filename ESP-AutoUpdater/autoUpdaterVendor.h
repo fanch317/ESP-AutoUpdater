@@ -13,6 +13,39 @@
 #define USE_SERIAL Serial
 
 /*
+ * Address of config in eeprom
+ */
+#define AUTOUPDATER_EEPROMADDRESS 0 //Address of config in eeprom
+
+/*
+ * GPIO for force update
+ */
+#define AUTOUPDATER_GPIOA 4
+#define AUTOUPDATER_GPIOB 5
+
+/*
+ * Globales options
+ */
+
+#define AUTOUPDATER_HOSTNAME "esp8266" //Default name on network bu mDNS
+
+/*
+ * Options for auto get last program from a AP WiFi
+ */
+#define AUTOUPDATER_AUTOGET_MAXATTEMPTS 10 //Default attempts to connect to wifi (10s)
+#define AUTOUPDATER_AUTOGET_WIFIESSID "***REMOVED***" //Default essid
+#define AUTOUPDATER_AUTOGET_WIFIPASS "***REMOVED***" //Default password
+#define AUTOUPDATER_AUTOGET_URL "http://domainname/file.bin"
+
+
+/*
+ * Options for listen connexion for upload program
+ */
+#define AUTOUPDATER_LISTENER_WAITSECONDS 120 //Run program after 2 minuts without client
+#define AUTOUPDATER_LISTENER_WIFIESSID "ESP8266" //Default essid
+#define AUTOUPDATER_LISTENER_WIFIPASS "ESP8266" //Default wpa2 password , empty = none encryption
+
+/*
  * Config (420 Bytes)
  */
 struct autoUpdaterConfig{
@@ -29,34 +62,6 @@ struct autoUpdaterConfig{
   char listenerWifiPass[32];
   unsigned int listenerTimeout;
 };
-
-/*
- * Address of config in eeprom
- */
-#define AUTOUPDATER_EEPROMADDRESS 0 //Address of config in eeprom
-
-/*
- * Globales options
- */
-
-#define AUTOUPDATER_HOSTNAME "esp8266" //Default name on network bu mDNS
-
-/*
- * Options for auto get last program from a AP WiFi
- */
-#define AUTOUPDATER_AUTOGET_MAXATTEMPTS 10 //Default attempts to connect to wifi (10s)
-#define AUTOUPDATER_AUTOGET_WIFIESSID "***REMOVED***" //Default essid
-#define AUTOUPDATER_AUTOGET_WIFIPASS "***REMOVED***" //Default password
-#define AUTOUPDATER_AUTOGET_URL "http://192.168.1.73/file.bin"
-
-
-/*
- * Options for listen connexion for upload program
- */
-#define AUTOUPDATER_LISTENER_WAITSECONDS 120 //Run program after 2 minuts without client
-#define AUTOUPDATER_LISTENER_WIFIESSID "ESP8266" //Default essid
-#define AUTOUPDATER_LISTENER_WIFIPASS "ESP8266" //Default wpa2 password , empty = none encryption
-
 
 void autoUpdater();
 int updateByAutoGet(autoUpdaterConfig configEeprom);

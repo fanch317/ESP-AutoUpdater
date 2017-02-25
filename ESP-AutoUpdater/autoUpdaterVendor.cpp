@@ -6,16 +6,15 @@ ESP8266HTTPUpdateServer httpUpdater;
 
 
 void debugDisplayConfig(autoUpdaterConfig configEeprom){
-  USE_SERIAL.println("debugDisplayConfig");
-  USE_SERIAL.println(configEeprom.hostname);
-  USE_SERIAL.println(configEeprom.autoGetWifiEssid);
-  USE_SERIAL.println(configEeprom.autoGetWifiPass);
-  USE_SERIAL.println(configEeprom.autoGetUrl);
-  USE_SERIAL.println(configEeprom.autoGetMaxAttempts);
-  USE_SERIAL.println(configEeprom.listenerWifiEssid);
-  USE_SERIAL.println(configEeprom.listenerWifiPass);
-  USE_SERIAL.println(configEeprom.listenerTimeout);
-
+  USE_SERIAL.println("[AUTOUPDATER] EEPROM Values :");
+  USE_SERIAL.printf("[AUTOUPDATER] dateProgram : %d\n",configEeprom.dateProgram);
+  USE_SERIAL.printf("[AUTOUPDATER] hostname : %s\n",configEeprom.hostname);
+  USE_SERIAL.printf("[AUTOUPDATER] autoGetWifiEssid : %s\n",configEeprom.autoGetWifiEssid);
+  USE_SERIAL.printf("[AUTOUPDATER] autoGetWifiPass : %s\n",configEeprom.autoGetWifiPass);
+  USE_SERIAL.printf("[AUTOUPDATER] autoGetMaxAttempts : %d\n",configEeprom.autoGetMaxAttempts);
+  USE_SERIAL.printf("[AUTOUPDATER] listenerWifiEssid : %s\n",configEeprom.listenerWifiEssid);
+  USE_SERIAL.printf("[AUTOUPDATER] listenerWifiPass : %s\n",configEeprom.listenerWifiPass);
+  USE_SERIAL.printf("[AUTOUPDATER] listenerTimeout : %d\n",configEeprom.listenerTimeout);
 }
 
 
@@ -55,21 +54,20 @@ void autoUpdater(){
 
   debugDisplayConfig(configEeprom);
 
-  USE_SERIAL.printf("[AUTOUPDATER] dateProgram from eeprom: %d",configEeprom.dateProgram);
+  USE_SERIAL.printf("[AUTOUPDATER] dateProgram from eeprom: %d\n",configEeprom.dateProgram);
 
 
-  pinMode(4, INPUT);
-  pinMode(5, INPUT);
+  pinMode(AUTOUPDATER_GPIOA, INPUT);
+  pinMode(AUTOUPDATER_GPIOB, INPUT);
 
-  if(digitalRead(4)==0 && digitalRead(5)==0 ){
+  if(digitalRead(AUTOUPDATER_GPIOA)==0 && digitalRead(AUTOUPDATER_GPIOB)==0 ){
     unsigned char timeout;
     bool exit = false;
     timeout = 30;
     do{
-      USE_SERIAL.printf("[AUTOUPDATER] Control key is pressed. Reset config ins %d second(s)",timeout);
-      USE_SERIAL.println("");
+      USE_SERIAL.printf("[AUTOUPDATER] Control key is pressed. Reset config ins %d second(s)\n",timeout);
       delay(1000);
-      if(digitalRead(4)!=0 || digitalRead(5)!=0 ){
+      if(digitalRead(AUTOUPDATER_GPIOA)!=0 || digitalRead(AUTOUPDATER_GPIOB)!=0 ){
         exit = true;
       }
       timeout--;
@@ -79,8 +77,8 @@ void autoUpdater(){
     /*
      * Reset config
      */
-    if(digitalRead(4)==0 && digitalRead(5)==0){
-      USE_SERIAL.println("[AUTOUPDATER] Force to reset config with defaults values!");
+    if(digitalRead(AUTOUPDATER_GPIOA)==0 && digitalRead(AUTOUPDATER_GPIOB)==0){
+      USE_SERIAL.println("[AUTOUPDATER] Force to reset config with defaults values...");
       debugDisplayConfig(configEeprom);
       configEeprom.dateProgram = 0;
       strcpy(configEeprom.hostname, AUTOUPDATER_HOSTNAME);
@@ -105,14 +103,14 @@ void autoUpdater(){
     /*
      * Update only by autoGet
      */
-    if(digitalRead(4)==0 && digitalRead(5)!=0){
+    if(digitalRead(AUTOUPDATER_GPIOA)==0 && digitalRead(AUTOUPDATER_GPIOB)!=0){
       USE_SERIAL.println("[AUTOUPDATER] Do a update by AutoGet");
       updateByAutoGet(configEeprom);
     }
     /*
      * Update only listener
      */
-    if(digitalRead(4)!=0 && digitalRead(5)==0){
+    if(digitalRead(AUTOUPDATER_GPIOA)!=0 && digitalRead(AUTOUPDATER_GPIOB)==0){
       USE_SERIAL.println("[AUTOUPDATER] Do a update by Listener");
       listenUpdater(configEeprom);
     }
