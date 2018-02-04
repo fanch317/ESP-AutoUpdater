@@ -32,38 +32,23 @@ void autoUpdater(){
   EEPROM.get(AUTOUPDATER_EEPROMADDRESS, configEeprom );
 
   debugDisplayConfig(configEeprom);
-  if(configEeprom.autoGetWifiEssid == 0 || true){
+  if(configEeprom.autoGetWifiEssid == 0){
     USE_SERIAL.println("[AUTOUPDATER] Initialize configEeprom with defaults values");
-    configEeprom.dateProgram = 0;
-
-    strcpy(configEeprom.hostname, AUTOUPDATER_HOSTNAME);
-
-    strcpy(configEeprom.autoGetWifiEssid, AUTOUPDATER_AUTOGET_WIFIESSID);
-    strcpy(configEeprom.autoGetWifiPass, AUTOUPDATER_AUTOGET_WIFIPASS);
-    strcpy(configEeprom.autoGetUrl, AUTOUPDATER_AUTOGET_URL);
-    configEeprom.autoGetMaxAttempts = AUTOUPDATER_AUTOGET_MAXATTEMPTS;
-
-
-    strcpy(configEeprom.listenerWifiEssid, AUTOUPDATER_LISTENER_WIFIESSID);
-    strcpy(configEeprom.listenerWifiPass,  AUTOUPDATER_LISTENER_WIFIPASS);
-    configEeprom.listenerTimeout = AUTOUPDATER_LISTENER_WAITSECONDS;
-
-    EEPROM.put( AUTOUPDATER_EEPROMADDRESS, configEeprom );
-    EEPROM.commit();
+    resetConfigEeprom(configEeprom);
   }
 
   debugDisplayConfig(configEeprom);
 
   USE_SERIAL.printf("[AUTOUPDATER] dateProgram from eeprom: %d\n",configEeprom.dateProgram);
 
-
   pinMode(AUTOUPDATER_GPIOA, INPUT_PULLUP);
   pinMode(AUTOUPDATER_GPIOB, INPUT_PULLUP);
 
-  if(digitalRead(AUTOUPDATER_GPIOA)==0 && digitalRead(AUTOUPDATER_GPIOB)==0 ){
+  //Check if GPIO is press
+  if(digitalRead(AUTOUPDATER_GPIOA)==0 && digitalRead(AUTOUPDATER_GPIOB)==0){
     unsigned char timeout;
     bool exit = false;
-    timeout = 30;
+    timeout = 10;
     do{
       USE_SERIAL.printf("[AUTOUPDATER] Control key is pressed. Reset config ins %d second(s)\n",timeout);
       delay(1000);
@@ -74,23 +59,14 @@ void autoUpdater(){
     } while(timeout > 0 && !exit);
     delay(500); //Wait for all release buttons
 
+
     /*
      * Reset config
      */
     if(digitalRead(AUTOUPDATER_GPIOA)==0 && digitalRead(AUTOUPDATER_GPIOB)==0){
-      USE_SERIAL.println("[AUTOUPDATER] Force to reset config with defaults values...");
-      debugDisplayConfig(configEeprom);
-      configEeprom.dateProgram = 0;
-      strcpy(configEeprom.hostname, AUTOUPDATER_HOSTNAME);
-      strcpy(configEeprom.autoGetWifiEssid, AUTOUPDATER_AUTOGET_WIFIESSID);
-      strcpy(configEeprom.autoGetWifiPass, AUTOUPDATER_AUTOGET_WIFIPASS);
-      strcpy(configEeprom.autoGetUrl, AUTOUPDATER_AUTOGET_URL);
-      strcpy(configEeprom.listenerWifiEssid, AUTOUPDATER_LISTENER_WIFIESSID);
-      strcpy(configEeprom.listenerWifiPass,  AUTOUPDATER_LISTENER_WIFIPASS);
-      configEeprom.listenerTimeout = AUTOUPDATER_LISTENER_WAITSECONDS;
-      EEPROM.put( AUTOUPDATER_EEPROMADDRESS, configEeprom );
-      EEPROM.commit();
-      debugDisplayConfig(configEeprom);
+      //Do a reset Eeprom config
+      resetConfigEeprom(configEeprom);
+      USE_SERIAL.println("[AUTOUPDATER] Do a update (AutoGet then Listener if fail)");
       int result = 0;
       //Update by autoget (connect to a wifi)
       result = updateByAutoGet(configEeprom);
@@ -128,7 +104,32 @@ void autoUpdater(){
       }
     }
   }
+
+  listenUpdater(configEeprom);
 }
+
+
+
+
+/*
+ * Reinitialize Eeprom config
+ */
+void resetConfigEeprom(autoUpdaterConfig configEeprom){
+  USE_SERIAL.println("[AUTOUPDATER] Force to reset config with defaults values...");
+  debugDisplayConfig(configEeprom);
+  configEeprom.dateProgram = 0;
+  strcpy(configEeprom.hostname, AUTOUPDATER_HOSTNAME);
+  strcpy(configEeprom.autoGetWifiEssid, AUTOUPDATER_AUTOGET_WIFIESSID);
+  strcpy(configEeprom.autoGetWifiPass, AUTOUPDATER_AUTOGET_WIFIPASS);
+  strcpy(configEeprom.autoGetUrl, AUTOUPDATER_AUTOGET_URL);
+  strcpy(configEeprom.listenerWifiEssid, AUTOUPDATER_LISTENER_WIFIESSID);
+  strcpy(configEeprom.listenerWifiPass,  AUTOUPDATER_LISTENER_WIFIPASS);
+  configEeprom.listenerTimeout = AUTOUPDATER_LISTENER_WAITSECONDS;
+  EEPROM.put( AUTOUPDATER_EEPROMADDRESS, configEeprom );
+  EEPROM.commit();
+  debugDisplayConfig(configEeprom);
+}
+
 
 /*
  * Auto update from a file on Wi-Fi
@@ -146,7 +147,7 @@ void autoUpdater(){
  */
 int updateByAutoGet(autoUpdaterConfig configEeprom) {
 
-  USE_SERIAL.printf("[AUTOUPDATER] Set WiFi to %S...\n",configEeprom.autoGetWifiEssid);
+  USE_SERIAL.printf("[AUTOUPDATER] Set WiFi to %s...\n",configEeprom.autoGetWifiEssid);
 
   USE_SERIAL.printf("[AUTOUPDATER] dateProgram from eeprom: %d",configEeprom.dateProgram);
 
@@ -235,10 +236,20 @@ int listenUpdater(autoUpdaterConfig configEeprom) {
 
   MDNS.begin(configEeprom.hostname);
   httpUpdater.setup(&httpServer);
+
+
+  httpServer.on("/settings", HTTP_GET, [](){
+      httpServer.send(200, "text/html", HTMLPAGESETTINGS);
+    });
+  httpServer.on("/", HTTP_GET, [](){
+      httpServer.send(200, "text/html", HTMLPAGEINDEX);
+    });
+
   httpServer.begin();
 
   MDNS.addService("http", "tcp", 80);
   Serial.printf("[AUTOUPDATER] HTTPUpdateServer ready! Open http://%s.local/update in your browser\n", configEeprom.hostname);
+
 
   unsigned int loopWaitTime = 0;
   while(loopWaitTime < AUTOUPDATER_LISTENER_WAITSECONDS){
@@ -250,7 +261,7 @@ int listenUpdater(autoUpdaterConfig configEeprom) {
   httpServer.close();
   httpServer.stop();
   WiFi.softAPdisconnect(true);
-  Serial.println("[AUTOUPDATER] Timeout ! Exit updater");
+  Serial.println("[AUTOUPDATER] Timeout! No client connected to webserver! Exit updater");
   return 0;
 
 }
