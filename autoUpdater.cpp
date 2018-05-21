@@ -1,4 +1,4 @@
-#include "autoUpdaterVendor.h"
+#include "autoUpdater.h"
 
 ESP8266WiFiMulti WiFiMulti;
 ESP8266WebServer httpServer(80);
